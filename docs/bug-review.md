@@ -695,18 +695,88 @@ socket.on('offer-received', async (data) => { ... })
 
 ---
 
-## 最近更新 (2026-04-02)
+## Bug 21: 停止监控时 App 卡死 (2026-04-03)
+
+### 问题描述
+Android App 点击"停止监控"后，App 无响应、卡死，必须强制关闭。
+
+### 根本原因
+1. `onDestroy()` 在主线程执行清理操作（Socket.IO disconnect、camera stopCapture）导致阻塞
+2. `AppCameraCapturer.stopCapture()` 和 `dispose()` 被重复调用，尝试 dispose 已释放的对象
+3. `SignalingClient.disconnect()` 中的 `emit("stop-watching")` 可能阻塞
+4. `PeerClient.release()` 错误地 dispose 了属于 AppCameraCapturer 的资源
+
+### 修复方案
+
+**SignalingClient.kt - 移除阻塞的 emit：**
+```kotlin
+// 修改前
+fun disconnect() {
+    socket?.emit("stop-watching", JSONObject().put("device_id", deviceId))  // 可能阻塞
+    socket?.disconnect()
+    ...
+}
+
+// 修改后
+fun disconnect() {
+    try { socket?.disconnect() } catch (e: Exception) { ... }
+    try { socket?.off() } catch (e: Exception) { ... }
+    socket = null
+    targetSocketId = null
+}
+```
+
+**AppCameraCapturer.kt - 添加释放标志防止重复 dispose：**
+```kotlin
+private var isReleased = false  // 防止重复释放
+
+fun dispose() {
+    if (isReleased) return
+    isReleased = true
+    stopCapture()
+    cameraExecutor.shutdown()
+    listener = null
+}
+```
+
+**PeerClient.kt - 只清理自己的引用：**
+```kotlin
+fun release() {
+    // 只关闭 peerConnection，不 dispose
+    peerConnection?.close()
+    peerConnection = null
+    // videoCapturer 和 peerConnectionFactory 由 AppCameraCapturer 管理
+    videoCapturer = null
+    localVideoTrack = null
+    localAudioTrack = null
+}
+```
+
+**CameraService.kt - 后台线程执行清理：**
+```kotlin
+override fun onDestroy() {
+    super.onDestroy()
+    Thread {
+        stopStreamingInternal()
+        releaseResourcesInternal()
+    }.start()
+    serviceScope.cancel()
+}
+```
+
+### 经验教训
+- Service 的 onDestroy() 中避免执行耗时操作，应放在后台线程
+- WebRTC 资源要注意所有权，不要重复 dispose 同一对象
+- Socket.IO 的 emit 操作可能阻塞，不应在清理时调用
+
+---
+
+## 最近更新 (2026-04-03)
 
 **已完成：**
-- [x] App 状态文字更新问题（ServiceStateHolder + StateFlow）
-- [x] App 本地预览不显示（共享 EglBase）
-- [x] App 默认使用后置摄像头
-- [x] WebRTC 信令 - viewer-joined/left 使用 socket.id
-- [x] WebRTC 信令 - RTCSessionDescription 构造修复
-- [x] 服务器 stop-watching 空值检查
-- [x] **WebRTC 端到端视频流传输（2026-04-02 验证通过）**
+- [x] **停止监控 App 卡死问题（2026-04-03 验证通过）**
 
-**待测试/待解决：**
+**待解决：**
 - [ ] HTTPS 配置（摄像头访问需要）
 - [ ] Android 双向语音对讲
 - [ ] Android 视频录制和 OSS 上传
