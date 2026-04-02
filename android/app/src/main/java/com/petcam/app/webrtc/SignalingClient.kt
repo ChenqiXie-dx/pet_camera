@@ -63,12 +63,19 @@ class SignalingClient(
     }
 
     /**
-     * 断开连接
+     * 断开连接（非阻塞）
      */
     fun disconnect() {
-        socket?.emit("stop-watching", JSONObject().put("device_id", deviceId))
-        socket?.disconnect()
-        socket?.off()
+        try {
+            socket?.disconnect()
+        } catch (e: Exception) {
+            Log.e(TAG, "Socket disconnect error: ${e.message}")
+        }
+        try {
+            socket?.off()
+        } catch (e: Exception) {
+            Log.e(TAG, "Socket off error: ${e.message}")
+        }
         socket = null
         targetSocketId = null
     }

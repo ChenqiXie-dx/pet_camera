@@ -35,6 +35,7 @@ class AppCameraCapturer(
     private var peerConnectionFactory: PeerConnectionFactory? = null
 
     private var isFrontCamera = false  // false = 后置摄像头
+    private var isReleased = false  // 防止重复释放
 
     /**
      * 设置监听器
@@ -137,27 +138,61 @@ class AppCameraCapturer(
      * 停止采集
      */
     fun stopCapture() {
+        if (isReleased) {
+            Log.d(TAG, "已释放，跳过 stopCapture")
+            return
+        }
         try {
             cameraVideoCapturer?.stopCapture()
+        } catch (e: Exception) {
+            Log.e(TAG, "stopCapture 失败: ${e.message}")
+        }
+        try {
             cameraVideoCapturer?.dispose()
+        } catch (e: Exception) {
+            Log.e(TAG, "cameraVideoCapturer dispose 失败: ${e.message}")
+        }
+        cameraVideoCapturer = null
+        try {
             surfaceTextureHelper?.dispose()
+        } catch (e: Exception) {
+            Log.e(TAG, "surfaceTextureHelper dispose 失败: ${e.message}")
+        }
+        surfaceTextureHelper = null
+        try {
             videoSource?.dispose()
+        } catch (e: Exception) {
+            Log.e(TAG, "videoSource dispose 失败: ${e.message}")
+        }
+        videoSource = null
+        try {
             videoTrack?.setEnabled(false)
             videoTrack?.dispose()
-            peerConnectionFactory?.dispose()
-            Log.d(TAG, "采集已停止")
         } catch (e: Exception) {
-            Log.e(TAG, "停止采集失败: ${e.message}")
+            Log.e(TAG, "videoTrack dispose 失败: ${e.message}")
         }
+        videoTrack = null
+        // 注意：peerConnectionFactory 由 PeerClient 管理，不要在这里 dispose
+        Log.d(TAG, "采集已停止")
     }
 
     /**
      * 释放资源
      */
     fun dispose() {
+        if (isReleased) {
+            Log.d(TAG, "已释放，跳过 dispose")
+            return
+        }
+        isReleased = true
         stopCapture()
-        cameraExecutor.shutdown()
+        try {
+            cameraExecutor.shutdown()
+        } catch (e: Exception) {
+            Log.e(TAG, "cameraExecutor shutdown 失败: ${e.message}")
+        }
         listener = null
+        Log.d(TAG, "AppCameraCapturer 已释放")
     }
 
     /**
