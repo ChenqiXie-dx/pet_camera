@@ -220,23 +220,48 @@ class CameraService : Service() {
      */
     private fun stopStreaming() {
         isStreaming = false
+        updateStatus("正在停止...")
+
+        // 断开信令连接（在后台线程执行，避免阻塞）
+        try {
+            signalingClient?.disconnect()
+        } catch (e: Exception) {
+            Log.e(TAG, "断开信令连接失败: ${e.message}")
+        }
+        signalingClient = null
+
+        // 停止相机采集
+        try {
+            cameraCapturer?.stopCapture()
+        } catch (e: Exception) {
+            Log.e(TAG, "停止相机采集失败: ${e.message}")
+        }
+
         updateStatus("服务已停止")
-        signalingClient?.disconnect()
-        cameraCapturer?.stopCapture()
         updateNotification("已停止推流")
         Log.d(TAG, "Streaming stopped")
     }
 
     /**
-     * 释放资源
+     * 释放资源（在主线程执行）
      */
     private fun releaseResources() {
-        cameraCapturer?.dispose()
-        peerClient?.release()
-
-        cameraCapturer = null
+        // 先释放 PeerClient（使用本地视频轨道引用）
+        try {
+            peerClient?.release()
+        } catch (e: Exception) {
+            Log.e(TAG, "释放 PeerClient 失败: ${e.message}")
+        }
         peerClient = null
-        signalingClient = null
+
+        // 再释放相机采集器（会 dispose 所有 WebRTC 资源）
+        try {
+            cameraCapturer?.dispose()
+        } catch (e: Exception) {
+            Log.e(TAG, "释放 CameraCapturer 失败: ${e.message}")
+        }
+        cameraCapturer = null
+
         // 注意：不释放 eglBase，因为它是由 MainActivity 共享持有的
 
         Log.d(TAG, "Resources released")

@@ -260,20 +260,19 @@ class PeerClient(
 
     /**
      * 释放资源
+     * 注意：不要 dispose videoCapturer 和 peerConnectionFactory，它们属于 AppCameraCapturer
      */
     fun release() {
-        videoCapturer?.stopCapture()
-        videoCapturer?.dispose()
-
-        localVideoTrack?.setEnabled(false)
-        localVideoTrack?.dispose()
-        localAudioTrack?.setEnabled(false)
-        localAudioTrack?.dispose()
-
+        // 只关闭 peerConnection，不 dispose（它由 factory 管理）
         peerConnection?.close()
-        peerConnection?.dispose()
+        peerConnection = null
 
-        peerConnectionFactory?.dispose()
+        // localVideoTrack 和 localAudioTrack 由 AppCameraCapturer 管理
+        localVideoTrack = null
+        localAudioTrack = null
+
+        // videoCapturer 和 peerConnectionFactory 由 AppCameraCapturer 管理，不要 dispose
+        videoCapturer = null
 
         Log.d(TAG, "PeerClient released")
     }
