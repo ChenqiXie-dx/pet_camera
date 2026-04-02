@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/72966/AppData/Local/Android/**)",
+      "Read(//c/Program Files \\(x86\\)/**)",
+      "Bash(ls -la '/c/Program Files \\(x86\\)/')",
+      "Bash(/d/software/platform-tools-latest-windows/platform-tools/adb shell:*)",
+      "Bash(/d/software/platform-tools-latest-windows/platform-tools/adb logcat:*)",
+      "Bash(/d/software/platform-tools-latest-windows/platform-tools/adb install:*)",
+      "Bash(adb install:*)"
+    ]
+  }
+}

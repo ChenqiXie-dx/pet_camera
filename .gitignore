@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+android/app/build/
+android/.gradle/
+android/build/
+*/node_modules/
+
+# Build outputs
+dist/
+*.apk
+*.aab
+*.js.map
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Gradle
+android/.gradle/
+android/app/build/
+
+# Keystore
+*.keystore
+*.jks
+
+# Misc
+*.log
